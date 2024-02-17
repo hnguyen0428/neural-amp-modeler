@@ -1133,12 +1133,21 @@ def _nasty_checks_modal():
     ok_button.pack()
     modal.grab_set()  # disable interaction with root window while modal is open
     modal.mainloop()
+    
+# Get the esr from the checkpoint filename
+def _get_esr_from_ckpt_path(ckpt_path: str):
+    splits = ckpt_path.split('_')
+    for split in splits:
+        if split.startswith('ESR='):
+            return float(split[4:])
+    return None
 
 
 def train(
     input_path: str,
     output_path: str,
     train_path: str,
+    ckpt_path: Optional[str] = None,
     input_version: Optional[Version] = None,
     epochs=100,
     delay=None,
@@ -1228,7 +1237,7 @@ def train(
                 every_n_epochs=1,
             ),
             pl.callbacks.model_checkpoint.ModelCheckpoint(
-                filename="checkpoint_last_{epoch:04d}_{step}", every_n_epochs=1
+                filename="checkpoint_last_{epoch:04d}_{step}_{ESR:.4g}", every_n_epochs=1
             ),
         ],
         default_root_dir=train_path,
@@ -1236,13 +1245,22 @@ def train(
     )
     # Suppress the PossibleUserWarning about num_workers (Issue 345)
     with filter_warnings("ignore", category=PossibleUserWarning):
-        trainer.fit(model, train_dataloader, val_dataloader)
+        trainer.fit(model, train_dataloader, val_dataloader, ckpt_path=ckpt_path)
 
     # Go to best checkpoint
     best_checkpoint = trainer.checkpoint_callback.best_model_path
     if best_checkpoint != "":
+        if ckpt_path is not None:
+            # We'll check if the best checkpoint from this run is better
+            # than the initial checkpoint we provided
+            initial_ckpt_esr = _get_esr_from_ckpt_path(ckpt_path)
+            current_ckpt_esr = _get_esr_from_ckpt_path(best_checkpoint)
+            if initial_ckpt_esr < current_ckpt_esr:
+                print('Provided checkpoint has better ESR than the best checkpoint from this run. Using provided checkpoint instead.')
+                best_checkpoint = ckpt_path
+            
         model = Model.load_from_checkpoint(
-            trainer.checkpoint_callback.best_model_path,
+            best_checkpoint,
             **Model.parse_config(model_config),
         )
     model.cpu()
