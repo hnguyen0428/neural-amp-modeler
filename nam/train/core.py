@@ -1231,13 +1231,13 @@ def train(
     trainer = pl.Trainer(
         callbacks=[
             pl.callbacks.model_checkpoint.ModelCheckpoint(
-                filename="checkpoint_best_{epoch:04d}_{step}_{ESR:.4g}_{MSE:.3e}",
+                filename=modelname + "_checkpoint_best_{epoch:04d}_{step}_{ESR:.4g}_{MSE:.3e}",
                 save_top_k=3,
                 monitor="val_loss",
                 every_n_epochs=1,
             ),
             pl.callbacks.model_checkpoint.ModelCheckpoint(
-                filename="checkpoint_last_{epoch:04d}_{step}_{ESR:.4g}", every_n_epochs=1
+                filename=modelname + "_checkpoint_last_{epoch:04d}_{step}_{ESR:.4g}_{MSE:.3e}", every_n_epochs=1
             ),
         ],
         default_root_dir=train_path,

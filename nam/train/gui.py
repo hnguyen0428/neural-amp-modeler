@@ -202,6 +202,16 @@ class _GUI(object):
             _PathType.DIRECTORY,
             hooks=[self._check_button_states],
         )
+        
+        self._frame_checkpoints = tk.Frame(self._root)
+        self._frame_checkpoints.pack()
+        self._path_button_checkpoints = _PathButton(
+            self._frame_checkpoints,
+            "Checkpoints",
+            "Select checkpoints - checkpoint's prefix must match output name",
+            _PathType.MULTIFILE,
+            hooks=[self._check_button_states],
+        )
 
         # Metadata
         self.user_metadata = UserMetadata()
@@ -345,6 +355,7 @@ class _GUI(object):
         architecture = self.advanced_options.architecture
         delay = self.advanced_options.delay
         file_list = self._path_button_output.val
+        checkpoints_list = self._path_button_checkpoints.val
 
         # Advanced-er options
         # If you're poking around looking for these, then maybe it's time to learn to
@@ -359,11 +370,20 @@ class _GUI(object):
             print("Now training {} with hyper params num_epochs = {}, lr = {}, lr_decay = {}, batch_size = {}"
                   .format(file, num_epochs, lr, lr_decay, batch_size))
             basename = re.sub(r"\.wav$", "", file.split("/")[-1])
+            
+            ckpt_path = None
+            # Find the checkpoint for this output if any
+            if checkpoints_list is not None:
+                for full_path in checkpoints_list:
+                    path = full_path.split("/")[-1]
+                    if path.startswith(basename):
+                        ckpt_path = full_path
 
             trained_model = core.train(
                 self._path_button_input.val,
                 file,
                 self._path_button_train_destination.val,
+                ckpt_path=ckpt_path,
                 epochs=num_epochs,
                 delay=delay,
                 architecture=architecture,
