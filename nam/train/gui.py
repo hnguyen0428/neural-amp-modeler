@@ -64,6 +64,7 @@ _BUTTON_WIDTH = 20
 _BUTTON_HEIGHT = 2
 _TEXT_WIDTH = 70
 
+_DEFAULT_MODEL_TYPE = core.ModelType.WAVENET
 _DEFAULT_DELAY = None
 _DEFAULT_IGNORE_CHECKS = False
 
@@ -75,6 +76,7 @@ _METADATA_RIGHT_WIDTH = 60
 @dataclass
 class _AdvancedOptions(object):
     architecture: core.Architecture
+    model_type: core.ModelType
     num_epochs: int
     lr: float
     lr_decay: float
@@ -235,6 +237,7 @@ class _GUI(object):
         default_architecture = core.Architecture.STANDARD
         self.advanced_options = _AdvancedOptions(
             default_architecture,
+            _DEFAULT_MODEL_TYPE,
             _DEFAULT_NUM_EPOCHS,
             _DEFAULT_LR,
             _DEFAULT_LR_DECAY,
@@ -353,6 +356,7 @@ class _GUI(object):
         # Advanced options:
         num_epochs = self.advanced_options.num_epochs
         architecture = self.advanced_options.architecture
+        model_type = self.advanced_options.model_type
         delay = self.advanced_options.delay
         file_list = self._path_button_output.val
         checkpoints_list = self._path_button_checkpoints.val
@@ -369,6 +373,7 @@ class _GUI(object):
         for file in file_list:
             print("Now training {} with hyper params num_epochs = {}, lr = {}, lr_decay = {}, batch_size = {}"
                   .format(file, num_epochs, lr, lr_decay, batch_size))
+            print("Model Type: {}".format(model_type))
             basename = re.sub(r"\.wav$", "", file.split("/")[-1])
             
             ckpt_path = None
@@ -386,6 +391,7 @@ class _GUI(object):
                 ckpt_path=ckpt_path,
                 epochs=num_epochs,
                 delay=delay,
+                model_type=model_type,
                 architecture=architecture,
                 batch_size=batch_size,
                 lr=lr,
@@ -581,6 +587,15 @@ class _AdvancedOptionsGUI(object):
             core.Architecture,
             default=self._parent.advanced_options.architecture,
         )
+        
+        self._frame_model_type = tk.Frame(self._root)
+        self._frame_model_type.pack()
+        self._model_type = _LabeledOptionMenu(
+            self._frame_model_type,
+            "Model Type",
+            core.ModelType,
+            default=self._parent.advanced_options.model_type,
+        )
 
         # Number of epochs: text box
         self._frame_epochs = tk.Frame(self._root)
@@ -653,6 +668,8 @@ class _AdvancedOptionsGUI(object):
         Set values to parent and destroy this object
         """
         self._parent.advanced_options.architecture = self._architecture.get()
+        self._parent.advanced_options.model_type = self._model_type.get()
+        
         epochs = self._epochs.get()
         if epochs is not None:
             self._parent.advanced_options.num_epochs = epochs

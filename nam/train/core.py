@@ -41,7 +41,11 @@ class Architecture(Enum):
     LITE = "lite"
     FEATHER = "feather"
     NANO = "nano"
-
+    
+class ModelType(Enum):
+    WAVENET = "WaveNet"
+    LSTM = "LSTM"
+    
 
 def _detect_input_version(input_path) -> Tuple[Version, bool]:
     """
