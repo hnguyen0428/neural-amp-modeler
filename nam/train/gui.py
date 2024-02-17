@@ -53,10 +53,12 @@ except ImportError:
 if _HAVE_ACCELERATOR:
     _DEFAULT_NUM_EPOCHS = 100
     _DEFAULT_BATCH_SIZE = 16
+    _DEFAULT_LR = 0.004
     _DEFAULT_LR_DECAY = 0.007
 else:
     _DEFAULT_NUM_EPOCHS = 20
     _DEFAULT_BATCH_SIZE = 1
+    _DEFAULT_LR = 0.004
     _DEFAULT_LR_DECAY = 0.05
 _BUTTON_WIDTH = 20
 _BUTTON_HEIGHT = 2
@@ -74,6 +76,9 @@ _METADATA_RIGHT_WIDTH = 60
 class _AdvancedOptions(object):
     architecture: core.Architecture
     num_epochs: int
+    lr: float
+    lr_decay: float
+    batch_size: int
     delay: Optional[int]
     ignore_checks: bool
 
@@ -221,6 +226,9 @@ class _GUI(object):
         self.advanced_options = _AdvancedOptions(
             default_architecture,
             _DEFAULT_NUM_EPOCHS,
+            _DEFAULT_LR,
+            _DEFAULT_LR_DECAY,
+            _DEFAULT_BATCH_SIZE,
             _DEFAULT_DELAY,
             _DEFAULT_IGNORE_CHECKS,
         )
@@ -341,14 +349,15 @@ class _GUI(object):
         # Advanced-er options
         # If you're poking around looking for these, then maybe it's time to learn to
         # use the command-line scripts ;)
-        lr = 0.004
-        lr_decay = _DEFAULT_LR_DECAY
-        batch_size = _DEFAULT_BATCH_SIZE
+        lr = self.advanced_options.lr
+        lr_decay = self.advanced_options.lr_decay
+        batch_size = self.advanced_options.batch_size
         seed = 0
 
         # Run it
         for file in file_list:
-            print("Now training {}".format(file))
+            print("Now training {} with hyper params num_epochs = {}, lr = {}, lr_decay = {}, batch_size = {}"
+                  .format(file, num_epochs, lr, lr_decay, batch_size))
             basename = re.sub(r"\.wav$", "", file.split("/")[-1])
 
             trained_model = core.train(
@@ -397,6 +406,12 @@ def _non_negative_int(val):
     val = int(val)
     if val < 0:
         val = 0
+    return val
+
+def _non_negative_float(val, fallback_val):
+    val = float(val)
+    if val < 0.0:
+        val = fallback_val
     return val
 
 
@@ -568,6 +583,34 @@ class _AdvancedOptionsGUI(object):
             default=_int_or_null_inv(self._parent.advanced_options.delay),
             type=_int_or_null,
         )
+        
+        self._frame_lr = tk.Frame(self._root)
+        self._frame_lr.pack()
+        self._lr = _LabeledText(
+            self._frame_lr,
+            "LR",
+            default=str(self._parent.advanced_options.lr),
+            type=lambda val: _non_negative_float(val, _DEFAULT_LR),
+        )
+        
+        self._frame_lr_decay = tk.Frame(self._root)
+        self._frame_lr_decay.pack()
+        self._lr_decay = _LabeledText(
+            self._frame_lr_decay,
+            "LR Decay",
+            default=str(self._parent.advanced_options.lr_decay),
+            type=lambda val: _non_negative_float(val, _DEFAULT_LR_DECAY),
+        )
+        
+        self._frame_batch_size = tk.Frame(self._root)
+        self._frame_batch_size.pack()
+
+        self._batch_size = _LabeledText(
+            self._frame_batch_size,
+            "Batch Size",
+            default=str(self._parent.advanced_options.batch_size),
+            type=_non_negative_int,
+        )
 
         # "Ok": apply and destory
         self._frame_ok = tk.Frame(self._root)
@@ -597,6 +640,19 @@ class _AdvancedOptionsGUI(object):
         # Value None is returned as "null" to disambiguate from non-set.
         if delay is not None:
             self._parent.advanced_options.delay = None if delay == "null" else delay
+        
+        lr = self._lr.get()
+        if lr is not None:
+            self._parent.advanced_options.lr = lr
+            
+        lr_decay = self._lr_decay.get()
+        if lr_decay is not None:
+            self._parent.advanced_options.lr_decay = lr_decay
+            
+        batch_size = self._batch_size.get()
+        if batch_size is not None:
+            self._parent.advanced_options.batch_size = batch_size
+            
         self._root.destroy()
 
 
