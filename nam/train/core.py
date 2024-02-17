@@ -35,6 +35,8 @@ STANDARD_SAMPLE_RATE = 48_000.0
 
 
 class Architecture(Enum):
+    PREMIUM = "premium"
+    PRO = "pro"
     STANDARD = "standard"
     LITE = "lite"
     FEATHER = "feather"
@@ -740,6 +742,60 @@ def _check(
 
 def _get_wavenet_config(architecture):
     return {
+        Architecture.PREMIUM: {
+            "layers_configs": [
+                {
+                    "input_size": 1,
+                    "condition_size": 1,
+                    "channels": 24,
+                    "head_size": 12,
+                    "kernel_size": 3,
+                    "dilations": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+                    "activation": "Tanh",
+                    "gated": False,
+                    "head_bias": False,
+                },
+                {
+                    "condition_size": 1,
+                    "input_size": 24,
+                    "channels": 12,
+                    "head_size": 1,
+                    "kernel_size": 3,
+                    "dilations": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+                    "activation": "Tanh",
+                    "gated": False,
+                    "head_bias": True,
+                },
+            ],
+            "head_scale": 0.02,
+        },
+        Architecture.PRO: {
+            "layers_configs": [
+                {
+                    "input_size": 1,
+                    "condition_size": 1,
+                    "channels": 20,
+                    "head_size": 10,
+                    "kernel_size": 3,
+                    "dilations": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+                    "activation": "Tanh",
+                    "gated": False,
+                    "head_bias": False,
+                },
+                {
+                    "condition_size": 1,
+                    "input_size": 20,
+                    "channels": 10,
+                    "head_size": 1,
+                    "kernel_size": 3,
+                    "dilations": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+                    "activation": "Tanh",
+                    "gated": False,
+                    "head_bias": True,
+                },
+            ],
+            "head_scale": 0.02,
+        },
         Architecture.STANDARD: {
             "layers_configs": [
                 {
