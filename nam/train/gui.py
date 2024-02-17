@@ -52,7 +52,7 @@ except ImportError:
 
 if _HAVE_ACCELERATOR:
     _DEFAULT_NUM_EPOCHS = 100
-    _DEFAULT_BATCH_SIZE = 16
+    _DEFAULT_BATCH_SIZE = 8
     _DEFAULT_LR = 0.004
     _DEFAULT_LR_DECAY = 0.007
 else:
@@ -314,7 +314,7 @@ class _GUI(object):
         make_checkbox(
             _CheckboxKeys.SILENT_TRAINING,
             "Silent run (suggested for batch training)",
-            False,
+            True,
         )
         make_checkbox(_CheckboxKeys.SAVE_PLOT, "Save ESR plot automatically", True)
         make_checkbox(
