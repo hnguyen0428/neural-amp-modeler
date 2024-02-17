@@ -517,6 +517,18 @@ def _calibrate_delay(
 
 def _get_lstm_config(architecture):
     return {
+        Architecture.PREMIUM: {
+            "num_layers": 2,
+            "hidden_size": 32,
+            "train_burn_in": 4096,
+            "train_truncate": 512,
+        },
+        Architecture.PRO: {
+            "num_layers": 2,
+            "hidden_size": 24,
+            "train_burn_in": 4096,
+            "train_truncate": 512,
+        },
         Architecture.STANDARD: {
             "num_layers": 1,
             "hidden_size": 24,
