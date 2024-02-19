@@ -356,7 +356,7 @@ class _GUI(object):
         # Advanced options:
         num_epochs = self.advanced_options.num_epochs
         architecture = self.advanced_options.architecture
-        model_type = self.advanced_options.model_type
+        model_type = self.advanced_options.model_type.value
         delay = self.advanced_options.delay
         file_list = self._path_button_output.val
         checkpoints_list = self._path_button_checkpoints.val
