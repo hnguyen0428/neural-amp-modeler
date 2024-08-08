@@ -485,6 +485,12 @@ def _non_negative_int(val):
         val = 0
     return val
 
+def _max_epochs_value(val):
+    val = int(val)
+    if val < -1:
+        val = -1
+    return val
+
 def _non_negative_float(val, fallback_val):
     val = float(val)
     if val < 0.0:
@@ -659,7 +665,7 @@ class _AdvancedOptionsGUI(object):
             self._frame_epochs,
             "Epochs",
             default=str(self._parent.advanced_options.num_epochs),
-            type=_non_negative_int,
+            type=_max_epochs_value,
         )
 
         # Delay: text box
