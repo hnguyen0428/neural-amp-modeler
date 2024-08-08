@@ -928,7 +928,7 @@ _CAB_MRSTFT_PRE_EMPH_COEF = 0.85
 
 
 def _get_configs(
-    input_version: Version,
+    input_version: Optional[Version],
     input_path: str,
     output_path: str,
     delay: int,
@@ -940,6 +940,8 @@ def _get_configs(
     lr_decay: float,
     batch_size: int,
     fit_cab: bool,
+    val_input_path: Optional[str],
+    val_output_path: Optional[str],
 ):
     def get_kwargs(data_info: _DataInfo):
         if data_info.major_version == 1:
@@ -979,22 +981,39 @@ def _get_configs(
             raise NotImplementedError(f"kwargs for input version {input_version}")
         return train_kwargs, validation_kwargs
 
-    data_info = {
-        1: _V1_DATA_INFO,
-        2: _V2_DATA_INFO,
-        3: _V3_DATA_INFO,
-        4: _V4_DATA_INFO,
-    }[input_version.major]
-    train_kwargs, validation_kwargs = get_kwargs(data_info)
-    data_config = {
-        "train": {"ny": ny, **train_kwargs},
-        "validation": {"ny": None, **validation_kwargs},
-        "common": {
-            "x_path": input_path,
-            "y_path": output_path,
-            "delay": delay,
-        },
-    }
+    if input_version is not None:
+        data_info = {
+            1: _V1_DATA_INFO,
+            2: _V2_DATA_INFO,
+            3: _V3_DATA_INFO,
+            4: _V4_DATA_INFO,
+        }[input_version.major]
+        train_kwargs, validation_kwargs = get_kwargs(data_info)
+        data_config = {
+            "train": {"ny": ny, **train_kwargs},
+            "validation": {"ny": None, **validation_kwargs},
+            "common": {
+                "x_path": input_path,
+                "y_path": output_path,
+                "delay": delay,
+            },
+        }
+    else:
+        data_config = {
+            "train": {
+                "x_path": input_path,
+                "y_path": output_path,
+                "ny": 8192
+            },
+            "validation": {
+                "x_path": val_input_path,
+                "y_path": val_output_path,
+                "ny": None
+            },
+            "common": {
+                "delay": delay,
+            },
+        }
 
     if model_type == "WaveNet":
         model_config = {
@@ -1180,37 +1199,52 @@ def train(
     ignore_checks: bool = False,
     local: bool = False,
     fit_cab: bool = False,
+    allow_any_inputs = False,
+    val_input_path: Optional[str] = None,
+    val_output_path: Optional[str] = None,
 ) -> Optional[Model]:
     if seed is not None:
         torch.manual_seed(seed)
+    
+    if not allow_any_inputs:
+        if input_version is None:
+            input_version, strong_match = _detect_input_version(input_path)
 
-    if input_version is None:
-        input_version, strong_match = _detect_input_version(input_path)
-
-    if delay is None:
-        delay = _calibrate_delay(
-            delay, input_version, input_path, output_path, silent=silent
-        )
-    else:
-        print(f"Delay provided as {delay}; skip calibration")
-
-    if _check(input_path, output_path, input_version, delay, silent):
-        print("-Checks passed")
-    else:
-        print("Failed checks!")
-        if ignore_checks:
-            if local and not silent:
-                _nasty_checks_modal()
-            else:
-                _print_nasty_checks_warning()
-        elif not local:  # And not ignore_checks
-            print(
-                "(To disable this check, run AT YOUR OWN RISK with "
-                "`ignore_checks=True`.)"
+        if delay is None:
+            delay = _calibrate_delay(
+                delay, input_version, input_path, output_path, silent=silent
             )
-        if not ignore_checks:
-            print("Exiting core training...")
+        else:
+            print(f"Delay provided as {delay}; skip calibration")
+
+        if _check(input_path, output_path, input_version, delay, silent):
+            print("-Checks passed")
+        else:
+            print("Failed checks!")
+            if ignore_checks:
+                if local and not silent:
+                    _nasty_checks_modal()
+                else:
+                    _print_nasty_checks_warning()
+            elif not local:  # And not ignore_checks
+                print(
+                    "(To disable this check, run AT YOUR OWN RISK with "
+                    "`ignore_checks=True`.)"
+                )
+            if not ignore_checks:
+                print("Exiting core training...")
+                return
+    else:
+        if delay is None:
+            print("Delay must be provided if you are providing your own inputs")
             return
+        if val_input_path is None:
+            print("Validation input path must be valid when allowing any input files")
+            return
+        if val_output_path is None:
+            print("Validation output path must be valid when allowing any input files")
+            return
+        print("Allowing any inputs... Skipping validation checks")
 
     data_config, model_config, learning_config = _get_configs(
         input_version,
@@ -1225,6 +1259,8 @@ def train(
         lr_decay,
         batch_size,
         fit_cab,
+        val_input_path,
+        val_output_path,
     )
 
     print("Starting training. It's time to kick ass and chew bubblegum!")
@@ -1284,12 +1320,12 @@ def train(
     model.net.sample_rate = train_dataloader.dataset.sample_rate
 
     def window_kwargs(version: Version):
-        if version.major == 1:
+        if version is not None and version.major == 1:
             return dict(
                 window_start=100_000,  # Start of the plotting window, in samples
                 window_end=101_000,  # End of the plotting window, in samples
             )
-        elif version.major == 2:
+        elif version is not None and version.major == 2:
             # Same validation set even though it's a different spot in the reamp file
             return dict(
                 window_start=100_000,  # Start of the plotting window, in samples

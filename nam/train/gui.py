@@ -62,16 +62,16 @@ else:
     _DEFAULT_LR_DECAY = 0.05
 _BUTTON_WIDTH = 20
 _BUTTON_HEIGHT = 2
-_TEXT_WIDTH = 70
+_TEXT_WIDTH = 100
+_FONT = ("Arial", 14)
 
 _DEFAULT_MODEL_TYPE = core.ModelType.WAVENET
 _DEFAULT_DELAY = None
 _DEFAULT_IGNORE_CHECKS = False
 
-_ADVANCED_OPTIONS_LEFT_WIDTH = 12
-_ADVANCED_OPTIONS_RIGHT_WIDTH = 12
+_ADVANCED_OPTIONS_LEFT_WIDTH = 24
+_ADVANCED_OPTIONS_RIGHT_WIDTH = 24
 _METADATA_RIGHT_WIDTH = 60
-
 
 @dataclass
 class _AdvancedOptions(object):
@@ -111,6 +111,7 @@ class _PathButton(object):
         self._button = tk.Button(
             frame,
             text=button_text,
+            font=_FONT,
             width=_BUTTON_WIDTH,
             height=_BUTTON_HEIGHT,
             fg="black",
@@ -122,6 +123,7 @@ class _PathButton(object):
             width=_TEXT_WIDTH,
             height=_BUTTON_HEIGHT,
             fg="black",
+            font=_FONT,
             bg=None,
             anchor="w",
         )
@@ -167,6 +169,7 @@ class _CheckboxKeys(Enum):
     SILENT_TRAINING = "silent_training"
     SAVE_PLOT = "save_plot"
     IGNORE_DATA_CHECKS = "ignore_data_checks"
+    ALLOW_ANY_INPUTS = "allow_any_inputs"
 
 
 class _GUI(object):
@@ -215,6 +218,26 @@ class _GUI(object):
             hooks=[self._check_button_states],
         )
 
+        self._frame_val_input_path = tk.Frame(self._root)
+        self._frame_val_input_path.pack()
+        self._path_button_val_input = _PathButton(
+            self._frame_val_input_path,
+            "Validation Input",
+            "Path of validation input data",
+            _PathType.FILE,
+            hooks=[self._check_button_states],
+        )
+
+        self._frame_val_output_path = tk.Frame(self._root)
+        self._frame_val_output_path.pack()
+        self._path_button_val_output = _PathButton(
+            self._frame_val_output_path,
+            "Validation Output",
+            "Path of validation output data",
+            _PathType.FILE,
+            hooks=[self._check_button_states],
+        )
+
         # Metadata
         self.user_metadata = UserMetadata()
         self._frame_metadata = tk.Frame(self._root)
@@ -222,6 +245,7 @@ class _GUI(object):
         self._button_metadata = tk.Button(
             self._frame_metadata,
             text="Metadata...",
+            font=_FONT,
             width=_BUTTON_WIDTH,
             height=_BUTTON_HEIGHT,
             fg="black",
@@ -251,6 +275,7 @@ class _GUI(object):
         self._button_advanced_options = tk.Button(
             self._frame_advanced_options,
             text="Advanced options...",
+            font=_FONT,
             width=_BUTTON_WIDTH,
             height=_BUTTON_HEIGHT,
             fg="black",
@@ -264,6 +289,7 @@ class _GUI(object):
         self._button_train = tk.Button(
             self._frame_train,
             text="Train",
+            font=_FONT,
             width=_BUTTON_WIDTH,
             height=_BUTTON_HEIGHT,
             fg="black",
@@ -277,6 +303,9 @@ class _GUI(object):
         """
         Determine if any buttons should be disabled
         """
+        # Disable validation path buttons if we aren't in allow any inputs mode
+        # Also disable checkpoints training if it's enabled
+
         # Train button is disabled unless all paths are set
         if any(
             pb.val is None
@@ -288,6 +317,19 @@ class _GUI(object):
         ):
             self._button_train["state"] = tk.DISABLED
             return
+        
+        # If allowing any inputs, we need to provide separate validation data
+        allow_any_inputs = self._checkboxes[_CheckboxKeys.ALLOW_ANY_INPUTS].variable.get()
+        if allow_any_inputs and any(
+            pb.val is None
+            for pb in (
+                self._path_button_val_input,
+                self._path_button_val_output,
+            )
+        ):
+            self._button_train["state"] = tk.DISABLED
+            return
+
         self._button_train["state"] = tk.NORMAL
 
     def _get_additional_options_frame(self):
@@ -308,7 +350,7 @@ class _GUI(object):
             variable = tk.BooleanVar()
             variable.set(default_value)
             check_button = tk.Checkbutton(
-                self._frame_checkboxes, text=text, variable=variable
+                self._frame_checkboxes, text=text, font=_FONT, variable=variable
             )
             self._checkboxes[key] = Checkbox(variable, check_button)
 
@@ -323,6 +365,11 @@ class _GUI(object):
         make_checkbox(
             _CheckboxKeys.IGNORE_DATA_CHECKS,
             "Ignore data quality checks (DO AT YOUR OWN RISK!)",
+            False,
+        )
+        make_checkbox(
+            _CheckboxKeys.ALLOW_ANY_INPUTS,
+            "Allow any input files. This skips validation checks and your model might turn out bad",
             False,
         )
 
@@ -368,6 +415,7 @@ class _GUI(object):
         lr_decay = self.advanced_options.lr_decay
         batch_size = self.advanced_options.batch_size
         seed = 0
+        allow_any_inputs = self._checkboxes[_CheckboxKeys.ALLOW_ANY_INPUTS].variable.get()
 
         # Run it
         for file in file_list:
@@ -405,6 +453,9 @@ class _GUI(object):
                 ].variable.get(),
                 local=True,
                 fit_cab=self._checkboxes[_CheckboxKeys.FIT_CAB].variable.get(),
+                allow_any_inputs=allow_any_inputs,
+                val_input_path=self._path_button_val_input.val,
+                val_output_path=self._path_button_val_output.val,
             )
             if trained_model is None:
                 print("Model training failed! Skip exporting...")
@@ -475,6 +526,7 @@ class _LabeledOptionMenu(object):
         fg = "black"
         self._label = tk.Label(
             frame,
+            font=_FONT,
             width=_ADVANCED_OPTIONS_LEFT_WIDTH,
             height=height,
             fg=fg,
@@ -535,6 +587,7 @@ class _LabeledText(object):
         text_height = 1
         self._label = tk.Label(
             frame,
+            font=_FONT,
             width=left_width,
             height=label_height,
             fg="black",
@@ -546,6 +599,7 @@ class _LabeledText(object):
 
         self._text = tk.Text(
             frame,
+            font=_FONT,
             width=right_width,
             height=text_height,
             fg="black",
