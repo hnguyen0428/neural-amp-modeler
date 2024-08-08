@@ -942,6 +942,7 @@ def _get_configs(
     fit_cab: bool,
     val_input_path: Optional[str],
     val_output_path: Optional[str],
+    ckpt_path: Optional[str],
 ):
     def get_kwargs(data_info: _DataInfo):
         if data_info.major_version == 1:
@@ -1067,6 +1068,8 @@ def _get_configs(
         "val_dataloader": {},
         "trainer": {"max_epochs": epochs, **device_config},
     }
+    if ckpt_path is not None:
+        model_config["checkpoint_path"] = ckpt_path
     return data_config, model_config, learning_config
 
 
@@ -1261,6 +1264,7 @@ def train(
         fit_cab,
         val_input_path,
         val_output_path,
+        ckpt_path,
     )
 
     print("Starting training. It's time to kick ass and chew bubblegum!")
